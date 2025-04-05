@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:latest
+    container_name: savewise_db
+    environment:
+      POSTGRES_USER: collboxNew
+      POSTGRES_PASSWORD: "1234"  # Пароль в кавычках, если содержит цифры
+      POSTGRES_DB: SaveWise
+    ports:
+      - "5432:5432"  # Отступ 2 пробела перед "-"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U collboxNew -d SaveWise"]  # Исправлен пользователь и БД
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  savewise:
+    image: ${DOCKER_REGISTRY-}savewise
+    container_name: savewise_app
+    build:
+      context: .
+      dockerfile: SaveWise\Dockerfile  # Для Windows можно оставить `\`
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5000:80"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__Postgres=Host=db;Database=SaveWise;Username=collboxNew;Password=1234;
+
+volumes:  # Выровнено с services и version
+  postgres_data:  # Отступ 2 пробела
