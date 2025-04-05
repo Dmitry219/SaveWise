@@ -1,3 +1,7 @@
+using FluentMigrator.Runner;
+using SaveWise.Migrations;
+using SaveWise.Repositories;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -6,15 +10,30 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddScoped<UserRepository>();
+
+builder.Services.AddFluentMigratorCore()
+    .ConfigureRunner(rb => rb
+                     .AddPostgres()
+                     .WithGlobalConnectionString(builder.Configuration.GetConnectionString("Postgres"))
+                     .ScanIn(typeof(CreateUsersTable).Assembly).For.Migrations())
+    .AddLogging(lb => lb.AddFluentMigratorConsole());
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+using (var scope = app.Services.CreateScope())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    var migrator = scope.ServiceProvider.GetRequiredService<IMigrationRunner>();
+    migrator.ListMigrations();
+    migrator.MigrateUp();
 }
+
+    // Configure the HTTP request pipeline.
+    if (app.Environment.IsDevelopment())
+    {
+        app.UseSwagger();
+        app.UseSwaggerUI();
+    }
 
 app.UseHttpsRedirection();
 
